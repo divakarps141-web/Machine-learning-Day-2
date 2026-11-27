@@ -1,16 +1,13 @@
 
 import streamlit as st
+import pickle
 import pandas as pd
 import plotly.express as px
-from sklearn.datasets import load_iris
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
-    page_title="Iris AI | ML Dashboard",
-    page_icon="🌸",
+    page_title="K-Means Cluster Dashboard",
+    page_icon="🧠",
     layout="wide"
 )
 
@@ -18,314 +15,314 @@ st.set_page_config(
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(135deg, #0B1220, #111C32);
-    color: #F8FAFC;
+    background: #0B1120;
+    color: #FFFFFF;
 }
+
 [data-testid="stSidebar"] {
-    background: #111B2E;
-    border-right: 1px solid #293B59;
+    display: none;
 }
+
+.block-container {
+    padding: 2rem 3rem;
+    max-width: 1400px;
+}
+
 h1, h2, h3, p, label {
-    color: #F8FAFC !important;
+    color: #FFFFFF !important;
 }
-.main-title {
-    font-size: 38px;
-    font-weight: 800;
-    color: #A78BFA;
-    margin-bottom: 5px;
-}
-.subtitle {
-    color: #B8C5D9;
-    font-size: 15px;
+
+.header {
+    background: linear-gradient(110deg, #1E1B4B, #172554);
+    padding: 28px;
+    border-radius: 18px;
+    border: 1px solid #3730A3;
     margin-bottom: 25px;
 }
-.metric-card {
-    background: #192943;
-    border: 1px solid #344967;
-    padding: 22px;
-    border-radius: 15px;
-    min-height: 115px;
+
+.header h1 {
+    font-size: 32px;
+    margin: 0;
+    color: #C4B5FD !important;
 }
-.metric-label {
-    color: #AFC1D9;
-    font-size: 14px;
-}
-.metric-value {
-    color: #FFFFFF;
-    font-size: 29px;
-    font-weight: 800;
+
+.header p {
+    color: #CBD5E1 !important;
     margin-top: 8px;
 }
-.section-card {
-    background: #192943;
-    padding: 20px;
+
+.metric {
+    background: #17243A;
+    border: 1px solid #334155;
     border-radius: 15px;
-    border: 1px solid #344967;
+    padding: 20px;
+    text-align: center;
 }
-div.stButton > button {
+
+.metric-label {
+    color: #94A3B8;
+    font-size: 14px;
+}
+
+.metric-value {
+    color: #67E8F9;
+    font-size: 28px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+.panel {
+    background: #17243A;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 24px;
+}
+
+div.stButton > button,
+div.stFormSubmitButton > button {
     background: linear-gradient(90deg, #7C3AED, #4F46E5);
     color: white;
     border: none;
     border-radius: 10px;
-    font-weight: 700;
-    padding: 10px 20px;
+    height: 48px;
+    font-weight: bold;
     width: 100%;
 }
-div.stButton > button:hover {
-    background: #6D5CE7;
+
+div.stButton > button:hover,
+div.stFormSubmitButton > button:hover {
+    background: #6D28D9;
     color: white;
     border: none;
 }
+
+div[data-testid="stNumberInput"] input {
+    background: #0F1B30;
+    color: white;
+    border: 1px solid #475569;
+    border-radius: 8px;
+}
+
+.result {
+    background: linear-gradient(120deg, #312E81, #164E63);
+    border: 1px solid #818CF8;
+    border-radius: 16px;
+    padding: 25px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.result-label {
+    color: #C4B5FD;
+    font-size: 15px;
+}
+
+.result-value {
+    color: #67E8F9;
+    font-size: 36px;
+    font-weight: 800;
+    margin-top: 8px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- LOAD DATA ----------------
+
+# ---------------- LOAD MODEL ----------------
 @st.cache_resource
-def load_model():
-    iris = load_iris()
+def load_models():
 
-    df = pd.DataFrame(
-        iris.data,
-        columns=iris.feature_names
+    with open("kmeans_model.pkl", "rb") as file:
+        model = pickle.load(file)
+
+    with open("scaler.pkl", "rb") as file:
+        scaler = pickle.load(file)
+
+    return model, scaler
+
+
+try:
+    model, scaler = load_models()
+
+except FileNotFoundError:
+    st.error(
+        "Model files not found. Upload kmeans_model.pkl "
+        "and scaler.pkl to your GitHub repository."
     )
+    st.stop()
 
-    scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(df)
+except Exception as error:
+    st.error(f"Unable to load model: {error}")
+    st.stop()
 
-    model = KMeans(
-        n_clusters=3,
-        random_state=42,
-        n_init=10
-    )
-
-    clusters = model.fit_predict(scaled_data)
-    score = silhouette_score(scaled_data, clusters)
-
-    df["Cluster"] = clusters
-    df["Species"] = [
-        iris.target_names[i] for i in iris.target
-    ]
-
-    return df, scaler, model, score, iris.feature_names
-
-df, scaler, model, score, features = load_model()
-
-# ---------------- SIDEBAR ----------------
-st.sidebar.markdown("## 🌸 Iris AI")
-st.sidebar.caption("Machine Learning Dashboard")
-st.sidebar.divider()
-
-page = st.sidebar.radio(
-    "NAVIGATION",
-    ["Dashboard", "Explore Data", "Predict Cluster", "About Project"]
-)
-
-st.sidebar.divider()
-st.sidebar.markdown("**Algorithm**")
-st.sidebar.info("K-Means Clustering")
-st.sidebar.markdown("**Dataset**")
-st.sidebar.info("Iris Flower Dataset")
 
 # ---------------- HEADER ----------------
-st.markdown(
-    '<div class="main-title">🌸 Iris Clustering Dashboard</div>',
-    unsafe_allow_html=True
-)
-st.markdown(
-    '<div class="subtitle">Explore flower measurements and discover patterns using unsupervised machine learning.</div>',
-    unsafe_allow_html=True
-)
+st.markdown("""
+<div class="header">
+    <h1>🧠 K-Means Cluster Identification</h1>
+    <p>Machine Learning Dashboard | Unsupervised Learning</p>
+</div>
+""", unsafe_allow_html=True)
 
-# ---------------- DASHBOARD ----------------
-if page == "Dashboard":
 
-    c1, c2, c3, c4 = st.columns(4)
+# ---------------- METRICS ----------------
+c1, c2, c3 = st.columns(3)
 
-    metrics = [
-        ("TOTAL FLOWERS", len(df)),
-        ("FEATURES", len(features)),
-        ("CLUSTERS", 3),
-        ("SILHOUETTE SCORE", f"{score:.3f}")
-    ]
+with c1:
+    st.markdown("""
+    <div class="metric">
+        <div class="metric-label">ALGORITHM</div>
+        <div class="metric-value">K-Means</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    for col, (label, value) in zip([c1, c2, c3, c4], metrics):
-        with col:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">{label}</div>
-                <div class="metric-value">{value}</div>
-            </div>
-            """, unsafe_allow_html=True)
+with c2:
+    st.markdown("""
+    <div class="metric">
+        <div class="metric-label">INPUT FEATURES</div>
+        <div class="metric-value">04</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.write("")
-    st.subheader("📊 Cluster Visualization")
+with c3:
+    st.markdown("""
+    <div class="metric">
+        <div class="metric-label">MODEL STATUS</div>
+        <div class="metric-value">ACTIVE</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    fig = px.scatter(
-        df,
-        x=features[2],
-        y=features[3],
-        color=df["Cluster"].astype(str),
-        hover_data=["Species"],
-        color_discrete_sequence=[
-            "#A78BFA", "#22D3EE", "#FBBF24"
-        ],
-        labels={"color": "Cluster"},
-        title="Petal Length vs Petal Width"
-    )
 
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#192943",
-        plot_bgcolor="#192943",
-        font_color="#FFFFFF",
-        margin=dict(l=20, r=20, t=55, b=20)
-    )
+st.write("")
+left, right = st.columns([1, 1], gap="large")
 
-    st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("📋 Dataset Preview")
-    st.dataframe(df.head(10), use_container_width=True)
+# ---------------- INPUT SECTION ----------------
+with left:
 
-# ---------------- EXPLORE DATA ----------------
-elif page == "Explore Data":
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
 
-    st.subheader("🔍 Explore Iris Dataset")
+    st.subheader("🌸 Flower Measurements")
+    st.caption("Enter the four measurements to identify its cluster.")
 
-    st.write("Understand the measurements and cluster distribution.")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        selected_feature = st.selectbox(
-            "Choose a feature",
-            features
-        )
-
-        fig = px.histogram(
-            df,
-            x=selected_feature,
-            color=df["Cluster"].astype(str),
-            color_discrete_sequence=[
-                "#A78BFA", "#22D3EE", "#FBBF24"
-            ],
-            title="Feature Distribution",
-            template="plotly_dark"
-        )
-        fig.update_layout(
-            paper_bgcolor="#192943",
-            plot_bgcolor="#192943"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        counts = df["Cluster"].value_counts().sort_index()
-
-        fig2 = px.pie(
-            values=counts.values,
-            names=[f"Cluster {i}" for i in counts.index],
-            hole=0.55,
-            title="Cluster Distribution",
-            color_discrete_sequence=[
-                "#A78BFA", "#22D3EE", "#FBBF24"
-            ]
-        )
-        fig2.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="#192943"
-        )
-        st.plotly_chart(fig2, use_container_width=True)
-
-    st.subheader("Complete Dataset")
-    st.dataframe(df, use_container_width=True)
-
-# ---------------- PREDICTION ----------------
-elif page == "Predict Cluster":
-
-    st.subheader("🧪 Predict a Flower Cluster")
-    st.write("Enter the four flower measurements below.")
-
-    with st.form("prediction_form"):
+    with st.form("cluster_form"):
 
         col1, col2 = st.columns(2)
 
         with col1:
             sepal_length = st.number_input(
-                "Sepal Length (cm)", 0.0, 10.0, 5.8, 0.1
+                "Sepal Length (cm)",
+                min_value=0.0,
+                max_value=10.0,
+                value=5.8,
+                step=0.1
             )
+
             sepal_width = st.number_input(
-                "Sepal Width (cm)", 0.0, 10.0, 2.7, 0.1
+                "Sepal Width (cm)",
+                min_value=0.0,
+                max_value=10.0,
+                value=2.7,
+                step=0.1
             )
 
         with col2:
             petal_length = st.number_input(
-                "Petal Length (cm)", 0.0, 10.0, 4.1, 0.1
+                "Petal Length (cm)",
+                min_value=0.0,
+                max_value=10.0,
+                value=4.1,
+                step=0.1
             )
+
             petal_width = st.number_input(
-                "Petal Width (cm)", 0.0, 10.0, 1.0, 0.1
+                "Petal Width (cm)",
+                min_value=0.0,
+                max_value=10.0,
+                value=1.0,
+                step=0.1
             )
 
         submitted = st.form_submit_button(
-            "🔮 Predict Cluster"
+            "🔍 IDENTIFY CLUSTER",
+            use_container_width=True
         )
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ---------------- RESULT SECTION ----------------
+with right:
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+
+    st.subheader("📊 Cluster Identification")
+
     if submitted:
-        input_data = [[
-            sepal_length,
-            sepal_width,
-            petal_length,
-            petal_width
-        ]]
 
-        scaled_input = scaler.transform(input_data)
-        prediction = model.predict(scaled_input)[0]
+        input_data = pd.DataFrame(
+            [[
+                sepal_length,
+                sepal_width,
+                petal_length,
+                petal_width
+            ]],
+            columns=[
+                "sepal_length",
+                "sepal_width",
+                "petal_length",
+                "petal_width"
+            ]
+        )
 
-        st.success("Prediction completed successfully!")
+        try:
+            scaled_data = scaler.transform(input_data)
+            prediction = model.predict(scaled_data)[0]
+
+            st.session_state["prediction"] = int(prediction)
+            st.session_state["input_values"] = input_data.iloc[0].to_dict()
+
+        except Exception as error:
+            st.error(f"Prediction failed: {error}")
+
+    if "prediction" in st.session_state:
+
+        prediction = st.session_state["prediction"]
 
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">PREDICTED RESULT</div>
-            <div class="metric-value">Cluster {prediction}</div>
+        <div class="result">
+            <div class="result-label">PREDICTED CLUSTER</div>
+            <div class="result-value">Cluster {prediction}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.caption(
-            "The cluster number represents a group discovered by K-Means. "
-            "It is not a guaranteed flower species prediction."
+        st.success("Cluster identified successfully!")
+
+        st.write("**Submitted measurements**")
+        st.dataframe(
+            pd.DataFrame(
+                [st.session_state["input_values"]]
+            ),
+            use_container_width=True,
+            hide_index=True
         )
 
-# ---------------- ABOUT ----------------
-elif page == "About Project":
+    else:
+        st.info(
+            "Enter flower measurements and click "
+            "'IDENTIFY CLUSTER' to view the result."
+        )
 
-    st.subheader("🤖 About This Project")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("""
-    ### Iris Flower Clustering
 
-    This project uses **K-Means Clustering**, an unsupervised
-    machine learning algorithm, to group flowers based on
-    their physical measurements.
+# ---------------- FOOTER ----------------
+st.write("")
+st.divider()
 
-    ### Machine Learning Workflow
-
-    1. Load the Iris dataset.
-    2. Standardize the four numerical features.
-    3. Apply the K-Means clustering algorithm.
-    4. Divide the flowers into three clusters.
-    5. Evaluate clustering using the Silhouette Score.
-    6. Predict the cluster for new flower measurements.
-
-    ### Technologies Used
-
-    - Python
-    - Streamlit
-    - Pandas
-    - Scikit-learn
-    - Plotly
-    """)
-
-    st.info(
-        "This is an educational unsupervised learning project."
-    )
-
-st.sidebar.markdown("---")
-st.sidebar.caption("Built with Python + Streamlit")
+st.markdown(
+    "<p style='text-align:center;color:#94A3B8 !important;'>"
+    "Powered by Python • Scikit-learn • Streamlit"
+    "</p>",
+    unsafe_allow_html=True
+)
