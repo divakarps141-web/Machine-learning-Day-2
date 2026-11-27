@@ -1,4 +1,1 @@
-
-streamlit
-pandas
-scikit-learn
+streamlit\npandas\nscikit-learn\n
